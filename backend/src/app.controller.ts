@@ -1,4 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import e from './edgeql-js';
 import { client } from './edgedb';
 import { CreateTodoDto } from './dto/create-todo.dto';
@@ -17,7 +25,7 @@ export class UserController {
         filter: e.op(u.token, '=', token),
       }))
       .run(client);
-    const selectedUser = user[0]
+    const selectedUser = user[0];
     return JSON.stringify(selectedUser);
   }
 
@@ -26,11 +34,11 @@ export class UserController {
     const user = await e
       .select(e.User, () => ({
         ...e.User['*'],
-        filter_single: {email: createUserDto.email},
+        filter_single: { email: createUserDto.email },
       }))
       .run(client);
 
-    const selectedUser = user as unknown as User
+    const selectedUser = user as unknown as User;
 
     const hashedPassword = createHash('sha512')
       .update(createUserDto.password)
@@ -43,11 +51,15 @@ export class UserController {
     const token = randomUUID();
     const expired = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    await e.update(e.User, () => ({ set: {
-      token, expired
-    },
-    filter_single:{id: selectedUser.id}
-   })).run(client);
+    await e
+      .update(e.User, () => ({
+        set: {
+          token,
+          expired,
+        },
+        filter_single: { id: selectedUser.id },
+      }))
+      .run(client);
 
     const userObj = await e
       .select(e.User, () => ({
@@ -56,14 +68,14 @@ export class UserController {
       }))
       .run(client);
 
-    const selectedUObj = userObj as unknown as User
+    const selectedUObj = userObj as unknown as User;
 
     return JSON.stringify({
       email: selectedUObj.email,
       role: selectedUObj.role,
       username: selectedUObj.username,
       token: selectedUObj.token,
-      expired: selectedUObj.expired
+      expired: selectedUObj.expired,
     });
   }
 
@@ -86,14 +98,14 @@ export class UserController {
       }))
       .run(client);
 
-    const selectedUser = user as unknown as User
+    const selectedUser = user as unknown as User;
 
     return JSON.stringify({
       email: selectedUser.email,
       role: selectedUser.role,
       username: selectedUser.username,
       token: selectedUser.token,
-      expired: selectedUser.expired
+      expired: selectedUser.expired,
     });
   }
 }
@@ -108,11 +120,19 @@ export class TodoController {
     return JSON.stringify(todos);
   }
 
+  @Get('/get-todo/:token')
+  async getUserTodo(@Param('token') token: string): Promise<string> {
+    const todos = await e
+      .select(e.Todo, (t) => ({ ...e.Todo['*'], filter: e.op(t['<tudos[is User]'].token, "=", token) }))
+      .run(client);
+    return JSON.stringify(todos);
+  }
+
   @Post('/create-todo/:token/:username')
   async create(
     @Body() createTodoDto: CreateTodoDto,
     @Param('token') token: string,
-    @Param('username') username: string
+    @Param('username') username: string,
   ): Promise<string> {
     const todo = await e
       .insert(e.Todo, {
@@ -131,7 +151,7 @@ export class TodoController {
             filter_single: { id: e.uuid(todo.id) },
           })),
         },
-        filter: e.op(u.token, '=', token)
+        filter: e.op(u.token, '=', token),
       }))
       .run(client);
 
@@ -143,6 +163,21 @@ export class TodoController {
     await e
       .delete(e.Todo, () => ({
         filter_single: { id: e.uuid(uuid.id) },
+      }))
+      .run(client);
+    return JSON.stringify({ success: true });
+  }
+
+  @Patch('/change-todo-status')
+  async changeStatus(
+    @Body() data: { id: string; status: 'pending' | 'done' | 'deferred' },
+  ): Promise<string> {
+    await e
+      .update(e.Todo, () => ({
+        set: {
+          status: data.status,
+        },
+        filter_single: { id: data.id },
       }))
       .run(client);
     return JSON.stringify({ success: true });

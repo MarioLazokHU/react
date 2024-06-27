@@ -1,5 +1,6 @@
 module default {
     scalar type Role extending enum<'user', 'admin'>;
+    scalar type TodoStatus extending enum<'pending', 'done', 'deferred'>;
     
     type UserSession {
         required expired: datetime {
@@ -24,7 +25,6 @@ module default {
         multi tudos: Todo{
             on target delete allow;
         }
-
     }
 
     type Todo{
@@ -33,7 +33,11 @@ module default {
         description: str;
         hours: int32;
         deadline: str;
+        status: TodoStatus {
+            default := 'pending'
+        };
+        created: datetime {
+            default := datetime_of_statement()
+        }
     }
-
-   
 }
