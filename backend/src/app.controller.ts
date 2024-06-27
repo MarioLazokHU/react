@@ -12,7 +12,7 @@ import { client } from './edgedb';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { createHash, randomUUID } from 'crypto';
-import { User } from './edgeql-js/interfaces';
+import type { User } from './edgeql-js/interfaces';
 
 @Controller('users')
 export class UserController {
