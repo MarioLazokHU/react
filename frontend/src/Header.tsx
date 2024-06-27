@@ -1,32 +1,14 @@
 import { Link } from "react-router-dom";
-import { getCookie, setCookie } from "./utils/cookies";
-import checkUser from "./utils/checkUser";
-import { useEffect, useState } from "react";
+import { setCookie } from "./utils/cookies";
+import { AuthContext } from "./main"; 
 import { Button } from "@mui/material";
+import { useContext } from "react";
 
 const Header = () => {
-  const [userValidated, setUserValidated] = useState(false);
+const { isAuthenticated, logout } = useContext(AuthContext); 
+let content = null
 
-  let content = null;
-
-  useEffect(() => {
-    const validateUser = async () => {
-      const userCookie = getCookie("user");
-      if (userCookie) {
-        const validUser = await checkUser(userCookie.id);
-        if (validUser.id) {
-          return setUserValidated(true);
-        } else {
-          return setUserValidated(false);
-        }
-      } else {
-        return setUserValidated(false);
-      }
-    };
-    validateUser();
-  }, [userValidated]);
-
-  if (userValidated) {
+  if (isAuthenticated) {
     content = (
       <header className="w-full h-24 flex justify-around items-center bg-slate-800 text-white">
         <Link to={"/"}>
@@ -48,6 +30,7 @@ const Header = () => {
           <Button
             onClick={() => {
               setCookie("user");
+              logout()
               window.location.replace('/')
             }}
             className="bg-slate-700 p-3 rounded shadow-md"

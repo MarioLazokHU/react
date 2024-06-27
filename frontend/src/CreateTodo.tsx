@@ -4,7 +4,6 @@ import { ChangeEvent, useState, useEffect } from "react";
 import type { Todo } from "./interface/todo";
 import { getCookie } from "./utils/cookies";
 
-
 const CreateTodo = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodo, setNewTodo] = useState<Todo>({
@@ -29,23 +28,29 @@ const CreateTodo = () => {
   };
 
   const handleSave = async () => {
-    const req = await fetch(`http://localhost:3000/todos/create-todo/${getCookie('user').id}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(newTodo),
-    });
-    const res = await req.json();
+    const user = getCookie("user");
+    if (user && user.token) {
+      const req = await fetch(
+        `http://localhost:3000/todos/create-todo/${user.token}/${user.username}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(newTodo),
+        }
+      );
+      const res = await req.json();
 
-    if (res) {
-      setNewTodo({
-        title: "",
-        description: "",
-        hours: "",
-        deadline: "",
-      });
-      getTodos();
+      if (res) {
+        setNewTodo({
+          title: "",
+          description: "",
+          hours: "",
+          deadline: "",
+        });
+        getTodos();
+      }
     }
   };
 
@@ -57,10 +62,10 @@ const CreateTodo = () => {
       },
       body: JSON.stringify({ id: id }),
     });
-    const res = await req.json()
+    const res = await req.json();
 
-    if(res.success){
-      getTodos()
+    if (res.success) {
+      getTodos();
     }
   };
 
@@ -84,6 +89,8 @@ const CreateTodo = () => {
           <TextField
             name="description"
             value={newTodo.description}
+            multiline={true}
+            rows={4}
             onChange={handleInputChange}
             label="Todo Description"
             variant="standard"
@@ -108,6 +115,9 @@ const CreateTodo = () => {
         </Button>
         <Card className="w-full p-4 flex mt-20">
           <Grid container>
+          <Grid item xs>
+              <div>Creator</div>
+            </Grid>
             <Grid item xs>
               <div>Title</div>
             </Grid>
@@ -132,6 +142,9 @@ const CreateTodo = () => {
               className="w-full p-4 flex hover:bg-slate-300 items-center mt-2"
             >
               <Grid container>
+              <Grid item xs>
+                  <div>{to.creator}</div>
+                </Grid>
                 <Grid item xs>
                   <div>{to.title}</div>
                 </Grid>
@@ -145,7 +158,12 @@ const CreateTodo = () => {
                   <div>{to.deadline}</div>
                 </Grid>
                 <Grid item xs>
-                  <Button onClick={()=>handleDelete(to.id as string)} variant="outlined">Delete</Button>
+                  <Button
+                    onClick={() => handleDelete(to.id as string)}
+                    variant="outlined"
+                  >
+                    Delete
+                  </Button>
                 </Grid>
               </Grid>
             </Card>

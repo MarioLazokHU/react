@@ -7,6 +7,7 @@ import CreateTodo from "./CreateTodo.tsx";
 import ListTodos from "./ListTodos.tsx";
 import Header from "./Header.tsx";
 
+
 interface AuthContextType {
   isAuthenticated: boolean;
   login: () => void;
@@ -19,23 +20,16 @@ export const AuthContext = createContext<AuthContextType>({
   logout: () => {}
 });
 
+
 const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  const loginHandler = () => {
-    setIsAuthenticated(true);
-  };
-
-  const logoutHandler = () => {
-    setIsAuthenticated(false);
-  };
+const [isAuthenticated, setIsAuthenticated] = useState(false); 
 
   return (
     <AuthContext.Provider
       value={{
         isAuthenticated: isAuthenticated,
-        login: loginHandler,
-        logout: logoutHandler
+        login:  ()=>setIsAuthenticated(true),
+        logout: ()=>setIsAuthenticated(false),
       }}
     >
       {children}
