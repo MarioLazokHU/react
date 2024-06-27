@@ -1,7 +1,7 @@
 module default {
     scalar type Role extending enum<'user', 'admin'>;
     
-    type Session {
+    type UserSession {
         required expired: datetime {
             default := datetime_of_statement() + <cal::date_duration>'7 days';
         }
@@ -10,7 +10,7 @@ module default {
         }
     }
 
-    type User extending Session {
+    type User extending UserSession {
         required username: str {
             constraint exclusive;
         }
@@ -18,10 +18,10 @@ module default {
             constraint exclusive;
         }
         required hashedPassword: str;
-        multi todos: Todo;
         role: Role{
             default := 'admin'
         }
+        multi tudos: Todo
     }
 
     type Todo{

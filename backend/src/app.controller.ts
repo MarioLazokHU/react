@@ -4,12 +4,13 @@ import { client } from './edgedb';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { createHash, randomUUID } from 'crypto';
+import { User } from './edgeql-js/interfaces';
 
 @Controller('users')
 export class UserController {
   @Get('/get-user/:id')
   async getUser(@Param('id') id: string): Promise<string> {
-    const [user] = await e
+    const user = await e
       .select(e.User, () => ({
         email: true,
         role: true,
@@ -23,37 +24,30 @@ export class UserController {
 
   @Post('/login')
   async loginUser(@Body() createUserDto: CreateUserDto): Promise<string> {
-    const [user] = await e
-      .select(e.User, () => ({
-        filter_single: { email: createUserDto.email },
-        id: true,
-        email: true,
-        hashedPassword: true,
+    const user: User = await e
+      .select(e.User, (u) => ({
+        ...e.User['*'],
+        filter: e.op(u.email, '=', createUserDto.email),
       }))
       .run(client);
-
-    if (!user) {
-      return JSON.stringify({ error: 'User not found' });
-    }
+    console.log(user);
 
     const hashedPassword = createHash('sha512')
       .update(createUserDto.password)
       .digest('hex');
-    if (user.hashedPassword !== hashedPassword) {
+
+    if (!user || user.hashedPassword !== hashedPassword) {
       return JSON.stringify({ error: 'Invalid credentials' });
     }
 
     const token = randomUUID();
     const expired = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    await e
-      .update(e.User, () => ({
-        set: { token, expired },
-        filter_single: { id: user.id },
-      }))
-      .run(client);
+    await e.update(e.User, () => ({ set: {
+      token, expired
+    } })).run(client);
 
-    const [userObj] = await e
+    const userObj: User = await e
       .select(e.User, () => ({
         ...e.User['*'],
         filter_single: { id: user.id },
@@ -61,7 +55,6 @@ export class UserController {
       .run(client);
 
     return JSON.stringify({
-      token: userObj.token,
       email: userObj.email,
       role: userObj.role,
       username: userObj.username,
@@ -70,6 +63,7 @@ export class UserController {
 
   @Post('/register')
   async create(@Body() createUserDto: CreateUserDto): Promise<string> {
+    console.log(createUserDto);
     const { id } = await e
       .insert(e.User, {
         username: createUserDto.username,
@@ -88,7 +82,6 @@ export class UserController {
       .run(client);
 
     return JSON.stringify({
-      token: user.token,
       email: user.email,
       role: user.role,
       username: user.username,
@@ -120,7 +113,7 @@ export class TodoController {
       })
       .run(client);
 
-    await e
+    /*await e
       .update(e.User, () => ({
         set: {
           todos: e.select(e.Todo, () => ({
@@ -129,7 +122,7 @@ export class TodoController {
         },
         filter_single: { id: e.uuid(userId) },
       }))
-      .run(client);
+      .run(client);*/
 
     return JSON.stringify({ success: true, id });
   }
