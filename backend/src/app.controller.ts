@@ -3,13 +3,18 @@ import e from './edgeql-js';
 import { client } from './edgedb';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { createHash, randomUUID } from 'crypto';
 
 @Controller('users')
 export class UserController {
   @Get('/get-user/:id')
   async getUser(@Param('id') id: string): Promise<string> {
-    const user = await e
+    const [user] = await e
       .select(e.User, () => ({
+        email: true,
+        role: true,
+        expired: true,
+        token: true,
         filter_single: { id },
       }))
       .run(client);
@@ -18,19 +23,49 @@ export class UserController {
 
   @Post('/login')
   async loginUser(@Body() createUserDto: CreateUserDto): Promise<string> {
-    const user = await e
+    const [user] = await e
       .select(e.User, () => ({
+        filter_single: { email: createUserDto.email },
         id: true,
-        username: true,
-        filter_single: { username: createUserDto.username },
+        email: true,
+        hashedPassword: true,
       }))
       .run(client);
 
-    if (user) {
-      return JSON.stringify(user);
-    } else {
+    if (!user) {
       return JSON.stringify({ error: 'User not found' });
     }
+
+    const hashedPassword = createHash('sha512')
+      .update(createUserDto.password)
+      .digest('hex');
+    if (user.hashedPassword !== hashedPassword) {
+      return JSON.stringify({ error: 'Invalid credentials' });
+    }
+
+    const token = randomUUID();
+    const expired = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await e
+      .update(e.User, () => ({
+        set: { token, expired },
+        filter_single: { id: user.id },
+      }))
+      .run(client);
+
+    const [userObj] = await e
+      .select(e.User, () => ({
+        ...e.User['*'],
+        filter_single: { id: user.id },
+      }))
+      .run(client);
+
+    return JSON.stringify({
+      token: userObj.token,
+      email: userObj.email,
+      role: userObj.role,
+      username: userObj.username,
+    });
   }
 
   @Post('/register')
@@ -38,17 +73,26 @@ export class UserController {
     const { id } = await e
       .insert(e.User, {
         username: createUserDto.username,
+        email: createUserDto.email,
+        hashedPassword: createHash('sha512')
+          .update(createUserDto.password)
+          .digest('hex'),
       })
       .run(client);
 
-    const user = await e
+    const [user] = await e
       .select(e.User, () => ({
         ...e.User['*'],
         filter_single: { id: id },
       }))
       .run(client);
 
-    return JSON.stringify(user);
+    return JSON.stringify({
+      token: user.token,
+      email: user.email,
+      role: user.role,
+      username: user.username,
+    });
   }
 }
 
