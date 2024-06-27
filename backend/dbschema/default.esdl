@@ -21,10 +21,14 @@ module default {
         role: Role{
             default := 'admin'
         }
-        multi tudos: Todo
+        multi tudos: Todo{
+            on target delete allow;
+        }
+
     }
 
     type Todo{
+        creator: str;
         title: str;
         description: str;
         hours: int32;

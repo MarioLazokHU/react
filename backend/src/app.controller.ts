@@ -8,35 +8,35 @@ import { User } from './edgeql-js/interfaces';
 
 @Controller('users')
 export class UserController {
-  @Get('/get-user/:id')
-  async getUser(@Param('id') id: string): Promise<string> {
+  @Get('/get-user/:token')
+  async getUser(@Param('token') token: string): Promise<string> {
     const user = await e
-      .select(e.User, () => ({
-        email: true,
-        role: true,
-        expired: true,
+      .select(e.User, (u) => ({
         token: true,
-        filter_single: { id },
+        expired: true,
+        filter: e.op(u.token, '=', token),
       }))
       .run(client);
-    return JSON.stringify(user);
+    const selectedUser = user[0]
+    return JSON.stringify(selectedUser);
   }
 
   @Post('/login')
   async loginUser(@Body() createUserDto: CreateUserDto): Promise<string> {
-    const user: User = await e
-      .select(e.User, (u) => ({
+    const user = await e
+      .select(e.User, () => ({
         ...e.User['*'],
-        filter: e.op(u.email, '=', createUserDto.email),
+        filter_single: {email: createUserDto.email},
       }))
       .run(client);
-    console.log(user);
+
+    const selectedUser = user as unknown as User
 
     const hashedPassword = createHash('sha512')
       .update(createUserDto.password)
       .digest('hex');
 
-    if (!user || user.hashedPassword !== hashedPassword) {
+    if (selectedUser.hashedPassword !== hashedPassword) {
       return JSON.stringify({ error: 'Invalid credentials' });
     }
 
@@ -45,25 +45,30 @@ export class UserController {
 
     await e.update(e.User, () => ({ set: {
       token, expired
-    } })).run(client);
+    },
+    filter_single:{id: selectedUser.id}
+   })).run(client);
 
-    const userObj: User = await e
+    const userObj = await e
       .select(e.User, () => ({
         ...e.User['*'],
-        filter_single: { id: user.id },
+        filter_single: { id: selectedUser.id },
       }))
       .run(client);
 
+    const selectedUObj = userObj as unknown as User
+
     return JSON.stringify({
-      email: userObj.email,
-      role: userObj.role,
-      username: userObj.username,
+      email: selectedUObj.email,
+      role: selectedUObj.role,
+      username: selectedUObj.username,
+      token: selectedUObj.token,
+      expired: selectedUObj.expired
     });
   }
 
   @Post('/register')
   async create(@Body() createUserDto: CreateUserDto): Promise<string> {
-    console.log(createUserDto);
     const { id } = await e
       .insert(e.User, {
         username: createUserDto.username,
@@ -74,17 +79,21 @@ export class UserController {
       })
       .run(client);
 
-    const [user] = await e
+    const user = await e
       .select(e.User, () => ({
         ...e.User['*'],
         filter_single: { id: id },
       }))
       .run(client);
 
+    const selectedUser = user as unknown as User
+
     return JSON.stringify({
-      email: user.email,
-      role: user.role,
-      username: user.username,
+      email: selectedUser.email,
+      role: selectedUser.role,
+      username: selectedUser.username,
+      token: selectedUser.token,
+      expired: selectedUser.expired
     });
   }
 }
@@ -99,13 +108,15 @@ export class TodoController {
     return JSON.stringify(todos);
   }
 
-  @Post('/create-todo/:id')
+  @Post('/create-todo/:token/:username')
   async create(
     @Body() createTodoDto: CreateTodoDto,
-    @Param('id') userId: string,
+    @Param('token') token: string,
+    @Param('username') username: string
   ): Promise<string> {
-    const { id } = await e
+    const todo = await e
       .insert(e.Todo, {
+        creator: username,
         title: createTodoDto.title,
         description: createTodoDto.description,
         hours: createTodoDto.hours,
@@ -113,18 +124,18 @@ export class TodoController {
       })
       .run(client);
 
-    /*await e
-      .update(e.User, () => ({
+    await e
+      .update(e.User, (u) => ({
         set: {
-          todos: e.select(e.Todo, () => ({
-            filter_single: { id: e.uuid(id) },
+          tudos: e.select(e.Todo, () => ({
+            filter_single: { id: e.uuid(todo.id) },
           })),
         },
-        filter_single: { id: e.uuid(userId) },
+        filter: e.op(u.token, '=', token)
       }))
-      .run(client);*/
+      .run(client);
 
-    return JSON.stringify({ success: true, id });
+    return JSON.stringify({ success: true, id: todo.id });
   }
 
   @Delete('/delete-todo')
