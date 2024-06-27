@@ -25,7 +25,7 @@ let content = null
             to={"/listtodos"}
             className="bg-slate-700 p-3 rounded shadow-md"
           >
-            Todos
+            My Todos
           </Link>
           <Button
             onClick={() => {

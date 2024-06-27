@@ -5,4 +5,5 @@ export interface Todo {
     description: string;
     hours: string;
     deadline: string;
+    status?: 'pending' | 'done' | 'deferred' 
   }

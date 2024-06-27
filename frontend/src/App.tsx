@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState, ChangeEvent } from "react";
 import { Button, TextField, Typography } from "@mui/material";
 import { AuthContext } from "./main";
-import { getCookie } from "./utils/cookies";
+import { validateUser } from "./utils/validateUser";
 
 const App = () => {
   const [registered, setRegistered] = useState(false);
@@ -11,22 +11,7 @@ const App = () => {
   const { isAuthenticated, login, logout } = useContext(AuthContext);
 
   useEffect(() => {
-    const checkUser = async (token: string) => {
-      const req = await fetch(`http://localhost:3000/users/get-user/${token}`);
-      const res = await req.json();
-      if (res && res.token && new Date(res.expired).getTime() > Date.now()) {
-        login();
-      } else {
-        logout();
-      }
-    };
-    const validateUser = async () => {
-      const userCookie = getCookie("user");
-      if (userCookie) {
-        checkUser(userCookie.token);
-      }
-    };
-    validateUser();
+  validateUser(login, logout)
   }, []);
 
   const registerUser = async () => {
